@@ -1,0 +1,518 @@
+PMR Info...
+
+Site code: 7397427
+Cust Nbr:  9235536
+
+### DB2 version  ###
+
+
+### db2idrop command deletes entries in /etc/services ###
+
+
+db2level 
+
+db2licm -v 
+######################       Source DB2 Profile            ##############################################
+
+Source DB2 profile:
+. /db2/ccmlibi/home/ccmlibi/sqllib/db2profile
+
+######################       DB2 ULIMIT Settings           ##############################################
+
+U-Limit errors: run  ksh getpstat64.ksh -i db2inst2 
+Check size of DMS tables dbdf rmdb 70 30 anything over 70% full will be altered to to 30% full. output file is alter_tablespace.sql.
+
+### Import database definitions on Windows *** Use double quotes around dir path with embedded SPACES 
+C:\Program Files\IBM\SQLLIB_01\BIN>db2cfimp "C:\Documents and Settings\lsokolos\
+My Documents\Documentation\DB2 Notes\db2_alias_list.txt"
+
+########## Date Functions    ############
+ 2=seconds  8=hours  16=days 32=weeks 64=months 128=quarters 256=years 
+ db2 "select timestampdiff (8,char(current_timestamp - timestamp('2011-08-29-13.49.13'))) from sysibm.sysdummy1"
+
+########## Memory Usage      #############
+
+db2mtrk -i -d 
+
+db2pd -d rom -dbptnmem
+
+########## Disk Space        #############
+
+db2diag -g oserr:="No space left on device"  db2diag.log.172
+
+db2 "alter tablespace "legacy_4kMtB00" extend (file '/sbmig/LEGACYContainers/LEGACY_4KMTB00' 100)"
+
+
+##########  DB2 Install #############
+
+If you downloaded the DB2 database product image, you must decompress and untar the product file. 
+Decompress the product file: 
+gzip -d product.tar.gz For example, 
+gzip -d ese.tar.gz
+Untar the product file: 
+On Linux operating systems 
+tar -xvf product.tarFor example, 
+tar -xvf ese.tar
+
+To uncompress a fix pack installation image, perform the following steps:
+Copy the gzipped image to a temporary location. 
+Change to the directory where you copied the image. 
+Enter the following command to uncompress the file: 
+gunzip -c filename.tar.gz | tar -xvf - where filename is the fix pack you are installing. 
+
+Determine DB2 products and installation path..
+
+cd /usr/bin 
+
+db2ls {shows directory where db2 is installed}
+
+Install Path                       Level   Fix Pack   Special Install Number   Install Date                  Installer UID
+---------------------------------------------------------------------------------------------------------------------
+/testsbobj/db2data/home/wasadm/db2v9    9.5.0.0        0                            Tue Oct 13 14:50:51 2009 CDT             0
+/testsbobj/db2data/home/db2inst5/db2v97    9.7.0.0        0                            Sat Oct 31 06:29:05 2009 CDT             0
+/testsbobj/db2data/home/db2inst3/db2v97    9.7.0.0        0                            Sat Oct 31 06:42:41 2009 CDT             0
+/testsbobj/db2data/home/was/db2v97    9.7.0.0        0                            Sat Oct 31 07:14:46 2009 CDT             0
+/testsbobj/db2data/home/wasadm/db2v97    9.7.0.0        0                            Thu Feb 25 16:11:45 2010 CST             0
+db2inst3@testsbobj:
+
+#### To get specific product information ...
+
+for path in `db2ls|awk '{print $1}'`
+do
+db2ls -q $path -p
+done
+
+
+Install Path : /testsbobj/db2data/home/wasadm/db2v97
+
+Product Response File ID         Level   Fix Pack   Product Description
+---------------------------------------------------------------------------------------------------------------------
+CLIENT                          9.7.0.0          0   IBM Data Server Client
+
+
+##########  Check memory usage: ############
+
+db2pd -mempools 
+db2mtrk -i -p 
+
+##########  DB2SUPPORT          ############
+
+db2support . -d icmnlsdb -c -g 
+
+
+########################  Check integrity of a compress backup ###########################################################
+
+ db2ckbkp -c -cl ~ccmlibi/sqllib/lib/libdb2compr.a ICMNLSDB.0.ccmlibi.NODE0000.CATN0000.20110523220001.001
+
+
+##########################################################  SYSIBMADM Views     #########################################
+
+db2 "select db_name,db_status,last_backup,appls_cur_cons,locks_waiting,lock_timeouts,appl_id_oldest_xact from sysibmadm.snapdb"|strip.pl
+db2 "select operation,operationtype,start_time,objecttype,location from sysibmadm.db_history where start_time>current_timestamp - 23 hour"
+
+
+db2 "select substr(sqlerrm(-911),1,130) from sysibm.sysdummy1"
+
+db2 "select substr(sqlerrm('sql911','',',','en_US',0),1,620) from sysibm.sysdummy1"
+
+db2 "select * from sysibmadm.authorizationids"
+
+db2 "select * from sysibmadm.db_history"
+
+db2 "select * from sysibmadm.dbcfg"
+
+db2 "select * from sysibmadm.dbmcfg"
+
+db2 "select * from sysibmadm.dbpaths"
+
+db2 "select * from sysibmadm.env_inst_info"
+
+db2 "select * from sysibmadm.env_prod_info"
+
+db2 "select * from sysibmadm.privileges" 
+
+db2 "select * from sysibmadm.reg_variables"
+
+db2 "select * from sysibmadm.applications"
+
+db2 "select * from sysibmadm.tbsp_utilization" 
+
+db2 "select * from sysibmadm.container_utilization"
+
+db2 "select substr(tbsp_name,1,30) as tbsp_name,tbsp_id,substr(tbsp_state,1,40) as tbsp_state from sysibmadm.snaptbsp_part"
+
+db2 "SELECT total_log_used,total_log_available,cast (100*((total_log_available-total_log_used)/total_log_available) as decimal(5,2)) as Percent ,SUBSTR(DB_NAME, 1,10)  FROM TABLE(SNAP_GET_DB_V91('', -2)) AS T" 
+ 
+db2 "select substr(type,1,20) as type,substr(path,1,100) as path from sysibmadm.dbpaths"> paths.txt
+
+db2 "select timestamp,substr(MSG,1,200) as MSG from sysibmadm.pdlogmsgs_last24hours where msgseverity in ('C','E') order by timestamp desc"
+
+db2 "select snapshot_timestamp as snapts,num_executions as executed, average_execution_time_s as exec_time,substr(stmt_text,1,300) from sysibmadm.TOP_DYNAMIC_SQL"
+
+db2 "select num_executions as executed, average_execution_time_s as exec_time,substr(stmt_text,1,60) from sysibmadm.TOP_DYNAMIC_SQL order by num_executions d
+esc fetch first 10 rows only"
+
+db2 "select substr(db_name,1,10) as DB,agent_id,substr(appl_name,1,10) as APP, substr(authid,1,8) as authid,substr(tbsp_name,1,15) as tbspnam,substr(tabschema,1,8) as tbsch,
+substr(tabname,1,25) as tabname,lock_mode,lock_status,lock_escalation from sysibmadm.locks_held"
+
+db2inst3@devhist: db2 describe table sysibmadm.locks_held
+
+db2 "select application_handle,num_locks_held from table(mon_get_unit_of_work(NULL,-1)) as t order by num_locks_held desc"
+
+db2 "select t.tabname,t.tbspaceid,s.tbspace from syscat.tables t inner join syscat.tablespaces s on t.tbspaceid=s.tbspaceid order by t.tbspaceid,t.tabname"|strip.p
+
+db2 "select t.tabname,s.tbspaceid,s.tbspace from syscat.tables t right outer join syscat.tablespaces s on t.tbspaceid=s.tbspaceid order by t.tbspaceid,t.tabname"
+
+db2 "select t.card,t.tabschema,t.tabname,t.tbspaceid,s.tbspace from syscat.tables t inner join syscat.tablespaces s on t.tbspaceid=s.tbspaceid order by t.tbspaceid,t.tabname"|strip.pl
+##########             Long Running SQL         ###########
+
+db2 "SELECT SUBSTR(STMT_TEXT, 1, 50) AS STMT_TEXT, AGENT_ID, ELAPSED_TIME_MIN, APPL_STATUS FROM SYSIBMADM.LONG_RUNNING_SQL"
+
+
+
+
+
+
+SELECT SUBSTR(STMT_TEXT, 1, 50) AS STMT_TEXT, AGENT_ID,ELAPSED_TIME_MIN, APPL_STATUS,  FROM  SYSIBMADM.LONG_RUNNING_SQL ORDER BY 
+                                Data type                     Column
+Column name                     schema    Data type name      Length     Scale Nulls
+------------------------------- --------- ------------------- ---------- ----- ------
+SNAPSHOT_TIMESTAMP              SYSIBM    TIMESTAMP                   10     6 Yes
+DB_NAME                         SYSIBM    VARCHAR                    128     0 Yes
+AGENT_ID                        SYSIBM    BIGINT                       8     0 Yes
+APPL_NAME                       SYSIBM    VARCHAR                    256     0 Yes
+AUTHID                          SYSIBM    VARCHAR                    128     0 Yes
+TBSP_NAME                       SYSIBM    VARCHAR                    128     0 Yes
+TABSCHEMA                       SYSIBM    VARCHAR                    128     0 Yes
+TABNAME                         SYSIBM    VARCHAR                    128     0 Yes
+TAB_FILE_ID                     SYSIBM    BIGINT                       8     0 Yes
+LOCK_OBJECT_TYPE                SYSIBM    VARCHAR                     18     0 Yes
+LOCK_NAME                       SYSIBM    VARCHAR                     32     0 Yes
+LOCK_MODE                       SYSIBM    VARCHAR                     10     0 Yes
+LOCK_STATUS                     SYSIBM    VARCHAR                     10     0 Yes
+LOCK_ESCALATION                 SYSIBM    SMALLINT                     2     0 Yes
+DBPARTITIONNUM                  SYSIBM    SMALLINT                     2     0 Yes
+
+ERCCONCT *************************   ************** **********************************************
+for agent in `db2 list applications|grep ERCCONCT|awk '{print $3}'`
+do
+`db2 get snapshot for application agentid $agent > snap_$agent`
+done
+
+*********************************  ****************  *********************************************
+db2 "get snapshot for application agentid 123">snap
+
+################  DB2ARCHIVE ############################
+
+
+db2diag -archive  will archive the db2diag.log file
+db2diag -H 2h       will show last two hours of the log
+db2diag -rc 
+db2diag -g level=Severe
+db2diag -g db=RMDB,instance=cmobji
+db2diag -rc 0xFFFFE60A    (translate ZRC codes) 
+
+db2diag -g message:="Disk was full"  db2diag.log
+
+db2diag -g oserr:="No space left on device"  db2diag.log.172
+
+######################################################
+
+#####################             Catch an SQLCODE and dump to db2diag.log     ########################
+
+
+db2pdcfg -catch -302 
+db2pdcfg -catch status
+db2pdcfg catch -clear
+
+####################################################################################################
+
+#################           Get HADR info                    ####################################### 
+
+
+db2 "select substr(db_name,1,10) as dbname,hadr_role,hadr_state from table (snap_get_hadr('TRDB',-1)) as snap_hadr"
+
+
+
+###################################################################################################
+
+########################      Log utilization              ########################################
+
+db2 "select substr(db_name,1,10) as db_name,total_log_available_kb,total_log_used_top_kb,log_utilization_percent,total_log_used_kb from  sysibmadm.log_utilization"
+
+db2 "SELECT total_log_used,total_log_available,cast (100*((total_log_available-total_log_used)/total_log_available) as decimal(5,2)) as Percent ,SUBSTR(DB_NAME, 1,10)  FROM TABLE(SNAP_GET_DB_V91('', -2)) AS T"
+
+GET MONITOR SWITCHES
+
+########################       Global Temporary Tables      ##########################################
+
+declare global temporary table t_status(status char(8), status_code int) on commit preserve rows not logged with replace
+
+UPDATE MONITOR SWITCHES USING LOCK ON BUFFERPOOL ON STATEMENT ON TIMESTAMP ON TABLE ON UOW ON TABLE ON
+
+Set schema=SELBD 
+########################    Catalog node and database       ##########################################
+
+db2 "catalog tcpip node selbd remote sblib server 60004 remote_instance db2inst2 system sblib ostype aix with 'Selboard Production' "
+db2 attach to selbd user lsokolos
+db2 catalog database selboard as selboard at node selbd authentication server
+
+
+
+Windows host file- c:\winnt\system32\drivers\etc  
+RUNSTATS ON TABLE BOL.MBR_HIST  ON ALL COLUMNS  WITH DISTRIBUTION  ON ALL COLUMNS  AND  INDEXES ALL ALLOW WRITE ACCESS
+
+
+#######################    SNAPSHOT                        ###########################################
+
+GET SNAPSHOT FOR LOCKS ON ICMNLSDB
+GET SNAPSHOT FOR locks for application agentid 99
+GET SNAPSHOT FOR APPLICATIONS ON RMDB
+GET SNAPSHOT FOR locks for application applid GA010211.B614.070608122456
+GET SNAPSHOT FOR APPLICATIONS FOR AGENTID 20222
+GET SNAPSHOT FOR APPLICATION APPLID GA010211.B614.070608122456 
+	DYNAMIC SQL WRITE TO FILE 
+GET SNAPSHOT for DBM 
+db2 get snapshot for database on selboard
+db2 "values(current timezone)"
+
+
+db2 "select * from table (snapshot_lockwait(''selboard'',-1)) as wait"
+db2 "select agent_id,lock_mode,agent_id_holding_lk,lock_wait_start_time,substr(table_name,1,30) as Table from table (snapshot_lockwait('selboard',-1)) as w"
+
+db2 "select * from table (snapshot_lockwait('SELBOARD',-1)) as w"
+
+Select * from table(snapshot_lock(‘SAMPLE’,-1)) as snapshot_lock
+
+db2 "select * from table(snapshot_container('TRDkB',-1)) as snapshot_cont"
+
+"Select * from table(snapshot_table('TRDB',-1)) as snapshot_t"
+
+Select * from table(snapshot_tbreorg("SAMPLE",-1)) as snapshot_r
+
+CALL SNAPSHOT_FILEW(6,’ROM,-1)
+
+seleUct lock_wait_start_time, agent_id, agent_id_holding_lk from table(snapshot_lockwait('rmdb',-1)) as a
+
+Select * from table snapshot_appl_inf((CAST NULL as varchar(1)),CAST(NULL as Integer))) as T
+LIST PACKAGES FOR SCHEMA schema-name
+db2 "select substr(pkgname,1,10),stmtno,sectno,seqno,text from syscat.statements where pkgname='P1000210'">o
+
+######################      DB2 EXPLAIN                         ####################################################
+db2expln -database trdb -z '';'' -f blk1.sql -output blk1.out
+db2expln -database trdb -schema db2inst3 -package P6134731 -output my.out
+db2expln -database trdb -terminator ';' -f blk1.sql -output blk1.out
+db2expln -schema ICMADMIN -escape ! package XYZ!%
+db2expln -database TRDB -t -q "select * from syscat.tables"
+db2exfmt -1 -d RMDB -g -o outfilename
+
+FORCE APPLICATION (12345, 54321)  
+
+######################      DB2 LOOK                            #####################################################
+FORCE APPLICATION (891)
+Db2pd -db selboard -locks -transa -age -file lock.txt
+DB2PD -db sample -static
+Db2pd -db sample -app -dyn file=lxs.out
+Db2pd -db sample -tablespaces -group
+DB2PD -database selboard -locks -tra -age -file lockinfo.txt
+db2mtrk -i -p -w -d -v
+dbdf selboard
+db2cctrc C:\cctrc.txt
+
+LIST HISTORY BACKUP since 2008-06-06 for ICMNLSDB 
+
+db2ckbkp -h <database backup filename>
+
+backup ONLINE keyword implies INCLUDE LOGS option.
+
+#################################  SECURITY ######################################################################
+-- Who has DBADM or SECADM authority?
+
+db2 "select * from table (sysproc.auth_list_authorities_for_authid('TRDBI','U')) as T order by authority"
+ 
+db2 "select * from syscat.dbauth where DBADMAUTH='Y' or SECURITYADMAUTH='Y'"
+db2 "select GRANTEE,DBADMAUTH,SECURITYADMAUTH from syscat.dbauth where DBADMAUTH='Y' or SECURITYADMAUTH='Y'"
+
+db2 "value SYSPROC.AUTH_GET_INSTANCE_AUTHID()"
+db2 "select substr(privilege,1,11) as privilege, substr(objectname,1,30) as object ,substr(objectschema,1,15) as schema, objecttype from sysibmadm.privileges where authid='LSOKOLOS'"
+db2 "select * from sysibmadm.authorizationids"
+
+
+#################################### List Role authority ##########################
+
+SELECT GRANTOR, GRANTORTYPE, GRANTEE, GRANTEETYPE, ROLENAME, CREATE_TIME, ADMIN FROM TABLE (SYSPROC.AUTH_LIST_ROLES_FOR_AUTHID ('KOFAXADMR', 'U') ) AS T
+
+db2 list applications
+db2 list command options
+db2set db2options=   resets to default
+db2set db2options="-v -z myfile.log"
+update command options using option value
+db2 get db cfg
+db2 get dbm cfg
+Import uses double quotes for strings (“text”) in delimited files; INSERT stmt using single quotes ( ‘ )
+Use modified by to change the delimiter to a single quote- makes it easier to run the Perl "build_bulk_insert.pl" 
+that inserts into Global Temporary Tables.
+
+db2 "export to selbd_itemid.del of del modified by chardel'' messages export_itemids.msgs select board_id,eligible_id,eligible_doc_id,cm_primary_id,is_ompf,is
+_hidden,substr(cm_item_type,1,10) as cm_item_type from selbd.eligible_document where board_id='$boardid' with ur"
+
+db2look -d trdb -t fe_document -a -l -e -x -c
+ksh evmon_ctl.ksh trdb stmt start (stop)
+
+
+#################################### Start event monitor manually ###################################################
+
+1. db2 "create event monitor stmt_evts for statements where (or APPL_ID=) AUTH_ID='cjfleenor' write to file '$HOME/evtmondata/icmnlsdb_stmt' maxfiles none MANUALSTART"
+2. db2 "set event monitor STMT_EVTS state=1"   ..... start monitor
+monitor......... ........ ....... 
+3. db2 "set event monitor stmt_evts state=0"   ..... stop monitor
+4. db2evmon -db icmnlsdb -evm STMT_EVTS>stmts      ..... format output
+5. db2 drop event monitor STMT_EVTS               .... drop event monitor afterwards
+6. db2 "select event_mon_state('STMT_EVTS') as state,evmonname from syscat.eventmonitors"
+SELECT EVMONNAME,CASE WHEN EVENT_MON_STATE(EVMONNAME) = 0 THEN 'Inactive' WHEN EVENT_MON_STATE(EVMONNAME) = 1 THEN 'Active' END FROM SYSCAT.EVENTMONITORS
+
+SELECT EVMONNAME,
+     CASE
+       WHEN EVENT_MON_STATE(EVMONNAME) = 0 THEN 'Inactive'
+       WHEN EVENT_MON_STATE(EVMONNAME) = 1 THEN 'Active'
+     END
+     FROM SYSCAT.EVENTMONITORS
+
+
+################################# DB2 TRACE          #############################################################################
+
+db2trc on
+db2trc clear
+db2 connect to selboard
+db2trc -p 10.1     -- trace pid 10 and thread one.
+db2trc dump trc.output 
+db2trc off
+db2trc flow trc.output trc.flw -- format binary file to readable format
+
+
+#################################  Catalog Queries   ##############################################################################
+
+### READ bind files: ### 
+db2bfd -s -v icmplsbc.bnd|more
+
+################################   Selection Board CM date change   ###############################################################
+
+update ICMADMIN.ICMUT01174001
+set ATTR0000001561 = ATTR0000001561 - 10 year
+where ATTR0000001260 = '143943423';
+
+select ATTR0000001561 from ICMADMIN.ICMUT01174001 where ATTR0000001260 = '143943423';
+
+
+select substr(p.specificname,1,20) as Specificname,substr(r.bname,1,20) as Bname,k.unique_id
+from syscat.procedures p, syscat.routinedep r, syscat.packages k
+where p.specificname = r.routinename and
+      k.pkgname = r.bname and
+      p.specificname ='CALCRPTSENAVG';
+
+select substr(pkgschema,1,10) as pkgschema, substr(pkgname,1,15) as pkgname, substr(boundby,1,30) as boundby,substr(definer,1,3) as definer
+ from syscat.packages;
+
+select substr(procname,1,30),substr(specificname,1,30),procedure_id,
+case contains_sql
+when 'C' then 'Contains SQL'
+when 'M' then 'Modify SQL DATA'
+when 'N' then 'No SQL'
+when 'R' then 'READS SQL DATA'
+else 'unkown'
+end ,
+language,program_type
+from syscat.procedures;
+
+list tablespace show detail :egrep 'ID|Name|Total Pages'
+!awk  '{print $4 $7 $11}'
+60 trdb_16kLrD00 16680
+61 trdb_8kMrD02 1400
+62 trdb_8kMrI02 1000
+
+-- List tablespace containters and tbsp_id
+
+db2 "select tbsp_id,varchar(tbsp_name,20) as tbsp,varchar(container_name,70) as container ,TOTAL_PAGES from table(mon_get_container('',-2)) as T "
+
+TBSP_ID              TBSP                 CONTAINER                                                              TOTAL_PAGES
+-------------------- -------------------- ---------------------------------------------------------------------- --------------------
+                   0 SYSCATSPACE          /testprlib/db2data/home/cmobji/RMDBcontainers/SYSCATSPACE                                 0
+
+
+1 shift G ! shift G
+
+ perl -pi -e "s/\"/'/g" insert_selbd_itemids.sql (use when changing export double quotes to single quotes) 
+
+check Tablespace status
+ perl -ne 'print if /State/ ... /Normal/' regex_text (Perl range expression) 
+
+db2 list tablespaces | perl -0ne 'print "$ARGV\n" if s/State//ig != s/Normal//ig'
+DB2 timestamp format ‘2007-07-01 09:01:01’
+
+db2inst1@prlib: perl -pi -e "s/\"/'/g" itls.del
+db2set –ALL    lists the DB2 “registry variables”
+
+db2inst3@devhist: db2 list tablespaces>o
+
+db2inst3@devhist: perl -0ne 'print "$ARGV\n" if s/State//ig != s/Normal//ig' o
+
+KILL DB2 Hard...
+alias psg="ps -ef | grep -v grep | grep"
+for p in `psg db2|awk '{print $2}'`
+> do
+> kill -9 $p
+> done
+clean up shared memory...
+for s in `ipcs -s|grep db2inst2|awk '{print $2}'`
+> do
+> ipcrm -s $s
+> done
+
+
+for s in `ipcs -m|grep db2inst2|awk '{print $2}'`
+> do
+> ipcrm -m $s
+> done
+
+######## LAST USED ##########
+DATAPARTITIONS
+INDEXES
+PACKAGES
+TABLES
+SYSDATAPARTITIONS
+SYSINDEXES
+SYSPLAN
+SYSTABLES
+
+
+db2 "select tabschema,tabname,indname,lastused from syscat.indexes where tabschema in ('ESUBMISSION','DB2INST3') and lastused='01/01/0001' "|perl strip.pl
+
+######## ORACLE #############
+
+lsokolos@sndbx1i@opdb01: db2 set serveroutput on
+DB20000I  The SET SERVEROUTPUT command completed successfully.
+
+This is needed to write to STDOUT or UTL_FILE using DBMS_OUTPUT.PUTLINE('Hello World')
+
+
+CLPPLUS is like Oracles SQLPlus command window it can be invoked from the Windows DB2 or from Unix, but need to have X11 work so
+start EXCEED first and one the Unix command line
+
+export DISPLAY=10.1.11.1:0
+
+### Simple Stored Procedure
+
+create or replace procedure test_ora
+as
+begin
+
+DBMS_OUTPUT.PUT_LINE('Inside proc');
+end test_ora@
+
+db2 -vtd@ -f test_ora.proc 
+lsokolos@sndbx1i@opdb01: db2 call test_ora
+
+  Return Status = 0
+
+Inside proc
+
