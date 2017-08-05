@@ -5,19 +5,47 @@ Cust Nbr:  9235536
 
 ### DB2 version  ###
 
+### db2idrop command deletes entries in /etc/services too ###
 
-### db2idrop command deletes entries in /etc/services ###
+### Testing Team Notes ###
+ROM back date “order date” 191 days using Stored Procedure db2 “call db2inst3.CLRREQBYSSN(‘123456789’,’U’,?,?,?)” input(SSN, “U” (update) or “L” (list)
+The testing team, reuses the same set of SSNs, to test ROM, but ROM requests are limited to once per six months.
 
+/db2/lcformsi/logs/archive/lcformsi/LCFORMS/NODE0000/C0000001] find . -name "*.LOG" -mtime  +1 |xargs /bin/rm –f	# remove archive logs from LCFORMS
+
+Produce an alphabetical list of comma-separated names, grouped by department.
+   SELECT workdept, 
+         LISTAGG(lastname, ', ') WITHIN GROUP(ORDER BY lastname)
+         AS employees 
+      FROM emp 
+      GROUP BY workdept
 
 db2level 
 
 db2licm -v 
+
+ulimit –Hfdn (CPDB02 TRDB instance owner) 
+file(blocks)         2097151
+data(kbytes)         unlimited
+nofiles(descriptors) unlimited
+
+Location of license file: DB2COPY/license/nodelock : usefule to see if license is installed on the HACMP standby host
+
+### IOCP      ###
+
+lslpp –l bos.iocp.rte
+
+lsdev –Cc iocp
+
+
 ######################       Source DB2 Profile            ##############################################
 
 Source DB2 profile:
 . /db2/ccmlibi/home/ccmlibi/sqllib/db2profile
 
 ######################       DB2 ULIMIT Settings           ##############################################
+
+ulimit –a if available update using smit user command – ulimited is indicated by -1
 
 U-Limit errors: run  ksh getpstat64.ksh -i db2inst2 
 Check size of DMS tables dbdf rmdb 70 30 anything over 70% full will be altered to to 30% full. output file is alter_tablespace.sql.
@@ -32,9 +60,22 @@ My Documents\Documentation\DB2 Notes\db2_alias_list.txt"
 
 ########## Memory Usage      #############
 
-db2mtrk -i -d 
+db2mtrk -i -d         
+db2mtrk –p 
+db2mtrk -a
+select * from table(admin_get_dbp_mem_usage()”
+db2 get dbm cfg show detail|grep INSTANCE_MEMORY
 
-db2pd -d rom -dbptnmem
+db2pd -d rom –dbptnmem
+
+db2pd –edus
+
+db2pd –d cwow –mem
+
+db2nps <node#> # shows process list similar to ps on UNIX
+
+ps –mo THREAD –p 1921136
+
 
 ########## Disk Space        #############
 
@@ -51,7 +92,7 @@ gzip -d product.tar.gz For example,
 gzip -d ese.tar.gz
 Untar the product file: 
 On Linux operating systems 
-tar -xvf product.tarFor example, 
+tar -xvf product.tar For example, 
 tar -xvf ese.tar
 
 To uncompress a fix pack installation image, perform the following steps:
@@ -65,6 +106,7 @@ Determine DB2 products and installation path..
 cd /usr/bin 
 
 db2ls {shows directory where db2 is installed}
+db2ls –b /opt/IBM/DB2/V10.5 –q –p  # query products 
 
 Install Path                       Level   Fix Pack   Special Install Number   Install Date                  Installer UID
 ---------------------------------------------------------------------------------------------------------------------
@@ -75,12 +117,20 @@ Install Path                       Level   Fix Pack   Special Install Number   I
 /testsbobj/db2data/home/wasadm/db2v97    9.7.0.0        0                            Thu Feb 25 16:11:45 2010 CST             0
 db2inst3@testsbobj:
 
+#### DB2 System Controller ###
+
+	ps –ef|grep db2sysc 
+
 #### To get specific product information ...
 
-for path in `db2ls|awk '{print $1}'`
+for path in `db2ls|awk '/db2/ {print $1}'`
 do
-db2ls -q $path -p
+db2ls -b $path -q –p
+db2ls –b $path 
 done
+
+db2 attach to db2inst3
+db2 detach 
 
 
 Install Path : /testsbobj/db2data/home/wasadm/db2v97
@@ -106,6 +156,8 @@ db2support . -d icmnlsdb -c -g
 
 
 ##########################################################  SYSIBMADM Views     #########################################
+
+## oldest transaction , lock waits, etc ##
 
 db2 "select db_name,db_status,last_backup,appls_cur_cons,locks_waiting,lock_timeouts,appl_id_oldest_xact from sysibmadm.snapdb"|strip.pl
 db2 "select operation,operationtype,start_time,objecttype,location from sysibmadm.db_history where start_time>current_timestamp - 23 hour"
@@ -169,7 +221,15 @@ db2 "select t.card,t.tabschema,t.tabname,t.tbspaceid,s.tbspace from syscat.table
 db2 "SELECT SUBSTR(STMT_TEXT, 1, 50) AS STMT_TEXT, AGENT_ID, ELAPSED_TIME_MIN, APPL_STATUS FROM SYSIBMADM.LONG_RUNNING_SQL"
 
 
+### Timestamp Diff ###
+db2 "select TIMESTAMPDIFF(4,CHAR(TIMESTAMP('2014-05-07-15.02.03.592550') -TIMESTAMP('2014-05-07-14.52.08.360997'))) from sysibm.dual"
 
+Check Backup
+db2 "select varchar(db_name,11),db_status,last_backup,appls_cur_cons,locks_waiting,lock_timeouts,appl_id_oldest_xact from sysibmadm.snapdb"
+select 'Backup Missing '||varchar(db_name,11) as DBNAME from sysibmadm.snapdb where last_backup is NULL
+
+db2 "select operation,operationtype,start_time,objecttype,location from sysibmadm.db_history where start_time>current_timestamp - 23 hour"
+db2 "select operation,operationtype,start_time,objecttype,location from sysibmadm.db_history where operation='B' and start_time>current_timestamp - 7 days "
 
 
 
@@ -202,9 +262,10 @@ done
 *********************************  ****************  *********************************************
 db2 "get snapshot for application agentid 123">snap
 
-################  DB2ARCHIVE ############################
+################  DB2DIAG ############################
 
 
+db2diag  -fmt "%db %{ts}  %message $function"
 db2diag -archive  will archive the db2diag.log file
 db2diag -H 2h       will show last two hours of the log
 db2diag -rc 
@@ -214,6 +275,7 @@ db2diag -rc 0xFFFFE60A    (translate ZRC codes)
 
 db2diag -g message:="Disk was full"  db2diag.log
 
+db2diag  -fmt "%db %{ts}  %message $function" -g message:=" Backup complete." (yields RMDB 2013-01-09-09.02.00.281033  Backup complete.) 
 db2diag -g oserr:="No space left on device"  db2diag.log.172
 
 ######################################################
@@ -232,6 +294,7 @@ db2pdcfg catch -clear
 
 db2 "select substr(db_name,1,10) as dbname,hadr_role,hadr_state from table (snap_get_hadr('TRDB',-1)) as snap_hadr"
 
+db2 get snaphot for database on trdb|grep -p HADR
 
 
 ###################################################################################################
@@ -243,6 +306,14 @@ db2 "select substr(db_name,1,10) as db_name,total_log_available_kb,total_log_use
 db2 "SELECT total_log_used,total_log_available,cast (100*((total_log_available-total_log_used)/total_log_available) as decimal(5,2)) as Percent ,SUBSTR(DB_NAME, 1,10)  FROM TABLE(SNAP_GET_DB_V91('', -2)) AS T"
 
 GET MONITOR SWITCHES
+
+########################       Tablespace Info              ##########################################
+
+SELECT varchar(tbsp_name, 30) as tbsp_name, member, tbsp_type,pool_data_p_reads, TBSP_AUTO_RESIZE_ENABLED, TBSP_MAX_PAGE_TOP FROM TABLE(MON_GET_TABLESPACE('',-2)) AS t ORDER BY pool_data_p_reads DESC
+
+"select container_type, tbsp_id, container_name, total_pages from sysibmadm.snapcontainer order by tbsp_id, container_id"
+
+
 
 ########################       Global Temporary Tables      ##########################################
 
@@ -260,6 +331,7 @@ db2 catalog database selboard as selboard at node selbd authentication server
 
 
 Windows host file- c:\winnt\system32\drivers\etc  
+
 RUNSTATS ON TABLE BOL.MBR_HIST  ON ALL COLUMNS  WITH DISTRIBUTION  ON ALL COLUMNS  AND  INDEXES ALL ALLOW WRITE ACCESS
 
 
@@ -274,7 +346,9 @@ GET SNAPSHOT FOR APPLICATION APPLID GA010211.B614.070608122456
 	DYNAMIC SQL WRITE TO FILE 
 GET SNAPSHOT for DBM 
 db2 get snapshot for database on selboard
-db2 "values(current timezone)"
+db2 "values(current timezone
+db2 "select db2_status,db2start_time,last_reset,local_cons,rem_cons_in from sysibmadm.snapdbm"
+db2 "select substr(db_name,1,10), appls_in_db2,cat_cache_overflows,cat_cache_lookups, cat_cache_inserts,cat_cache_size_top from table(snap_db_v91(cast (null as varchar(128)), -2) as t"
 
 
 db2 "select * from table (snapshot_lockwait(''selboard'',-1)) as wait"
@@ -282,7 +356,7 @@ db2 "select agent_id,lock_mode,agent_id_holding_lk,lock_wait_start_time,substr(t
 
 db2 "select * from table (snapshot_lockwait('SELBOARD',-1)) as w"
 
-Select * from table(snapshot_lock(�SAMPLE�,-1)) as snapshot_lock
+Select * from table(snapshot_lock(‘SAMPLE’,-1)) as snapshot_lock
 
 db2 "select * from table(snapshot_container('TRDkB',-1)) as snapshot_cont"
 
@@ -290,13 +364,14 @@ db2 "select * from table(snapshot_container('TRDkB',-1)) as snapshot_cont"
 
 Select * from table(snapshot_tbreorg("SAMPLE",-1)) as snapshot_r
 
-CALL SNAPSHOT_FILEW(6,�ROM,-1)
+CALL SNAPSHOT_FILEW(6,’ROM,-1)
 
-seleUct lock_wait_start_time, agent_id, agent_id_holding_lk from table(snapshot_lockwait('rmdb',-1)) as a
+select lock_wait_start_time, agent_id, agent_id_holding_lk from table(snapshot_lockwait('rmdb',-1)) as a
 
 Select * from table snapshot_appl_inf((CAST NULL as varchar(1)),CAST(NULL as Integer))) as T
 LIST PACKAGES FOR SCHEMA schema-name
 db2 "select substr(pkgname,1,10),stmtno,sectno,seqno,text from syscat.statements where pkgname='P1000210'">o
+db2 "select substr(PKGSCHEMA,1,15) as schema, substr(PKGNAME,1,15) as pkgname,CREATE_TIME,EXPLICIT_BIND_TIME,LAST_BIND_TIME,PKG_CREATE_TIME from syscat.packages order by pkgschema,LAST_BIND_TIME desc"
 
 ######################      DB2 EXPLAIN                         ####################################################
 db2expln -database trdb -z '';'' -f blk1.sql -output blk1.out
@@ -306,27 +381,48 @@ db2expln -schema ICMADMIN -escape ! package XYZ!%
 db2expln -database TRDB -t -q "select * from syscat.tables"
 db2exfmt -1 -d RMDB -g -o outfilename
 
-FORCE APPLICATION (12345, 54321)  
+“FORCE APPLICATION (12345, 54321)”  
 
-######################      DB2 LOOK                            #####################################################
+######################      db2pd                             #####################################################
 FORCE APPLICATION (891)
-Db2pd -db selboard -locks -transa -age -file lock.txt
-DB2PD -db sample -static
-Db2pd -db sample -app -dyn file=lxs.out
-Db2pd -db sample -tablespaces -group
-DB2PD -database selboard -locks -tra -age -file lockinfo.txt
+db2pd -db selboard -locks -transa -age -file lock.txt
+db2pd -db sample -static
+db2pd -db sample -app -dyn file=lxs.out
+db2pd -db sample -tablespaces -group
+db2pd -database selboard -locks -tra -age -file lockinfo.txt
 db2mtrk -i -p -w -d -v
 dbdf selboard
 db2cctrc C:\cctrc.txt
 
-LIST HISTORY BACKUP since 2008-06-06 for ICMNLSDB 
+LIST HISTORY BACKUP since 20140601 for ICMNLSDB 
 
-db2ckbkp -h <database backup filename>
+db2ckbkp -h 
 
 backup ONLINE keyword implies INCLUDE LOGS option.
 
+
 #################################  SECURITY ######################################################################
+
+RBAC Roles
+rolelist
+swrole db2-admin
+rolelist -a
+[MILL][lsokolos@nppdb01:/export/DB2/server_t] rolelist -a
+db2-admin       aix.security.group.create.normal
+                aix.security.group.list
+                aix.security.group.remove.normal
+                aix.security.passwd.normal
+                aix.security.user.create.normal
+                aix.security.user.list
+                aix.security.user.remove.normal
+
+DB2 “tech” location for DB2 software installation: cd /export/DB2
+-rwxr-xr-x    1 bin      bin            5154 Aug 14 2014  db2setup
+
+
 -- Who has DBADM or SECADM authority?
+db2 grant secadm on database to user lsokolos,andersf
+db2 grant dbadm with dataaccess on database to user lcad
 
 db2 "select * from table (sysproc.auth_list_authorities_for_authid('TRDBI','U')) as T order by authority"
  
@@ -337,8 +433,9 @@ db2 "value SYSPROC.AUTH_GET_INSTANCE_AUTHID()"
 db2 "select substr(privilege,1,11) as privilege, substr(objectname,1,30) as object ,substr(objectschema,1,15) as schema, objecttype from sysibmadm.privileges where authid='LSOKOLOS'"
 db2 "select * from sysibmadm.authorizationids"
 
-
 #################################### List Role authority ##########################
+
+"select substr(privilege,1,11) as privilege, substr(objectname,1,30) as object ,substr(objectschema,1,15) as schema, objecttype from sysibmadm.privileges where authid='SELBDDEBUG' and objectschema in ('SELBD','OEBS') order by objectschema,objecttype,privilege"
 
 SELECT GRANTOR, GRANTORTYPE, GRANTEE, GRANTEETYPE, ROLENAME, CREATE_TIME, ADMIN FROM TABLE (SYSPROC.AUTH_LIST_ROLES_FOR_AUTHID ('KOFAXADMR', 'U') ) AS T
 
@@ -347,10 +444,10 @@ db2 list command options
 db2set db2options=   resets to default
 db2set db2options="-v -z myfile.log"
 update command options using option value
-db2 get db cfg
+db2 get db cfg or select * from sysibmadm.dbcfg
 db2 get dbm cfg
-Import uses double quotes for strings (�text�) in delimited files; INSERT stmt using single quotes ( � )
-Use modified by to change the delimiter to a single quote- makes it easier to run the Perl "build_bulk_insert.pl" 
+Import uses double quotes for strings (“text”) in delimited files; INSERT stmt using single quotes ( ‘ )
+Use modified by chardel’’ to change the delimiter to a single quote- makes it easier to run the Perl "build_bulk_insert.pl" 
 that inserts into Global Temporary Tables.
 
 db2 "export to selbd_itemid.del of del modified by chardel'' messages export_itemids.msgs select board_id,eligible_id,eligible_doc_id,cm_primary_id,is_ompf,is
@@ -360,7 +457,7 @@ db2look -d trdb -t fe_document -a -l -e -x -c
 ksh evmon_ctl.ksh trdb stmt start (stop)
 
 
-#################################### Start event monitor manually ###################################################
+#################################### Start event monitor manually old-way ###################################################
 
 1. db2 "create event monitor stmt_evts for statements where (or APPL_ID=) AUTH_ID='cjfleenor' write to file '$HOME/evtmondata/icmnlsdb_stmt' maxfiles none MANUALSTART"
 2. db2 "set event monitor STMT_EVTS state=1"   ..... start monitor
@@ -378,22 +475,48 @@ SELECT EVMONNAME,
      END
      FROM SYSCAT.EVENTMONITORS
 
+#################################### Start event monitor manually – New Way 9.7.7 ###################################################
+
+
+1.	db2 update db cfg using mon_deadlock HIST_AND_VALUES
+2.	create event monitor lock_evts for locking deadlock|locktimeout|lockwait write to unformatted event table (tablename mondata.locks in mondatats4k pctdeactivate 60 manualstart|autostart”
+
+a.	db2 "create event monitor stmt_evts for statements where auth_id='lsokolos' write to table STMT (table mondata.stmts in MONDATATS4K pctdeactivate 60)  manualstart"
+b.	db2 “select * from mondata.stmts
+
+3.	db2 "set event monitor LOCK_EVTS state=1"   
+4.	db2 “evmon_format_ue_to_tables (locking|pkgcache|uow),NULL,NULL,NULL,mondata,mondatats4k,NULL,-1 ’select * from mondata.locks where event_timestamp >current_timestamp -1 hour’) – creates additional tables
+
+Tables created by deadlock monitor:
+LOCKEVENTS
+LOCK_EVENT
+LOCK_PARTICIPANTS
+LOCK_PARTICIPANT_ACTIVITIES
+LOCK_ACTIVITY_VALUES
+
+
 
 ################################# DB2 TRACE          #############################################################################
 
-db2trc on
+db2trc on -f trc.dmp   -- turn trace on and write output to file "trc.dmp"
 db2trc clear
 db2 connect to selboard
 db2trc -p 10.1     -- trace pid 10 and thread one.
-db2trc dump trc.output 
+db2trc dump trc.dmp  
 db2trc off
-db2trc flow trc.output trc.flw -- format binary file to readable format
+db2trc flow trc.dmp trc.flw -- format binary file to readable format
+db2trc fmt trc.dmp trc.fmt  -- format 
 
 
 #################################  Catalog Queries   ##############################################################################
 
 ### READ bind files: ### 
 db2bfd -s -v icmplsbc.bnd|more
+
+
+SELECT (data_object_p_size + index_object_p_size + long_object_p_size +
+  lob_object_p_size + xml_object_p_size) as total_p_size
+  FROM TABLE( SYSPROC.ADMIN_GET_TAB_INFO( 'DBUSER1', 'EMPLOYEE' )) AS T
 
 ################################   Selection Board CM date change   ###############################################################
 
@@ -447,12 +570,12 @@ check Tablespace status
  perl -ne 'print if /State/ ... /Normal/' regex_text (Perl range expression) 
 
 db2 list tablespaces | perl -0ne 'print "$ARGV\n" if s/State//ig != s/Normal//ig'
-DB2 timestamp format �2007-07-01 09:01:01�
+DB2 timestamp format ‘2007-07-01 09:01:01’
 
 db2inst1@prlib: perl -pi -e "s/\"/'/g" itls.del
-db2set �ALL    lists the DB2 �registry variables�
+db2set –ALL    lists the DB2 “registry variables”
 
-db2inst3@devhist: db2 list tablespaces>o
+db2inst3@devhist: db2 list tablespaces
 
 db2inst3@devhist: perl -0ne 'print "$ARGV\n" if s/State//ig != s/Normal//ig' o
 
@@ -515,4 +638,3 @@ lsokolos@sndbx1i@opdb01: db2 call test_ora
   Return Status = 0
 
 Inside proc
-
